@@ -13,16 +13,30 @@ from scipy.optimize import Bounds, minimize
 
 from ntl_bergquist1972 import ntl_bergquist1972
 
+
+""" global variables """
+# minimum radius of simulation (port reference plane) in m
 rmin = 3e-3
+# maximum radius of simulation (port reference plane) in m
 rmax = 18e-3
+# height step in m
 deltah = -0.5e-3
+# final height at rmax in m
 h1 = 1.5e-3
+# exponential growth factor
 k = 500
+# number of samples in lateral dimension
 n_mesh = 1001
+# simulation frequency minimum
 f0 = 26e9
+# simulation frequency maximum
 f1 = 40e9
+# number of frequency samples
 n_freq_samples = 101
+
+
 f_vect = np.linspace(f0, f1, n_freq_samples)
+# assuming TEM propagation --> gamma is proportional to f
 gamma_vect = 1j * 2*np.pi * f_vect / const.c
 r = np.linspace(rmin, rmax, n_mesh)
 
@@ -31,10 +45,31 @@ plt.rcParams['legend.title_fontsize'] = 11
 
 
 def radL_z0(d, r):
+    """Calculate impedance values of parallel plate radial line with given radius and
+        distance values.
+
+    Args:
+        d (np.ndarray): parallel plate distance values.
+        r (np.ndarray): radius values.
+
+    Returns:
+        np.ndarray: parallel-plate impedance values.
+    """
     return sqrt(const.mu_0 / const.epsilon_0) * 8 / np.pi * d / r
 
 
 def get_s11_step_taper(stp1_dh_rel, stp1_r0, stp2_r0):
+    """Generate list of dB(s11) values for frequency sweep of a radial line having two discrete
+        height steps. The frequency range is set by global variables f0, f1 and n_freq_samples.
+
+    Args:
+        stp1_dh_rel (float): relative height of stp1. stp2 is equal to deltah*(1-stp1_dh_rel).
+        stp1_r0 (float): radius of stp1.
+        stp2_r0 (float): radius of stp2.
+
+    Returns:
+        list(float): radial line dB(s11) over frequency.
+    """
     stp1_dh_abs = -deltah * stp1_dh_rel
     stp2_dh_abs = -deltah * (1 - stp1_dh_rel)
 
@@ -50,6 +85,15 @@ def get_s11_step_taper(stp1_dh_rel, stp1_r0, stp2_r0):
 
 
 def sum_of_sqr_err(x, goal_s11):
+    """Return sum of square error for a profile determined step locations and height factor.
+
+    Args:
+        x (list(float)): parameters for radial line profile.
+        goal_s11 (float): s11 goal value in db.
+
+    Returns:
+        list(float): radial line dB(s11) over frequency.
+    """
     stp1_dh_rel = x[0]
     stp1_r0 = x[1]
     stp2_r0 = x[2]
@@ -58,7 +102,6 @@ def sum_of_sqr_err(x, goal_s11):
     s11_err = s11[s11 > goal_s11]
     sumsq = np.sum(np.square(s11_err - goal_s11))
     print(f"({x[0]:2.2f}, {x[1]*1e3:2.2f}mm, {x[2]*1e3:2.2f}mm) -- {sumsq:4.2f}")
-
     return sumsq
 
 
@@ -76,6 +119,9 @@ def plot_s11(x):
 
 
 def optimize_step_taper():
+    """Run optimization of stepped radial line. The starting point is set to the currently
+        best known solution.
+    """
     bounds = Bounds([0, rmin, rmin], [1, rmax, rmax])
     res = minimize(sum_of_sqr_err, [0.678, 4e-3, 6e-3], method='SLSQP',
                    options={'xtol': 1e-3, 'disp': True},
@@ -100,20 +146,20 @@ def show_comparison():
     d_stp = h1 + deltah + stp1_dh_abs * (r > stp1_r0) + stp2_dh_abs * (r > stp2_r0)
     z_dstp = radL_z0(d_stp, r)
 
-#    p = plt.plot(r*1e3, 1e3*np.repeat(h1+deltah, n_mesh), label='Constant')
-#    plt.vlines([1e3*rmin, rmax*1e3], 0, 1e3*(deltah+h1), color=p[0].get_color())
-#    plt.hlines(0, rmin*1e3, rmax*1e3, color=p[0].get_color())
-#    p = plt.plot(r*1e3, 1e3*np.linspace(h1+deltah, h1, n_mesh), label='Linear')
-#    plt.vlines(rmax*1e3,  1e3*h1, 1e3*(deltah+h1), color=p[0].get_color())
-#    plt.plot(r*1e3, 1e3*d_stp, label='Steps')
-#    plt.plot(r*1e3, 1e3*d_exp, label='Exp.')
-#    plt.xlabel('Radius in mm')
-#    plt.ylabel('Height in mm')
-#    plt.ylim(-1, 2)
-#    plt.legend(title='Profiles:', ncol=2, loc='lower right')
-#    plt.tight_layout()
-#    plt.savefig("Profiles_HeightTaperMethods_srcPlot.svg")
-#    plt.show()
+    p = plt.plot(r*1e3, 1e3*np.repeat(h1+deltah, n_mesh), label='Constant')
+    plt.vlines([1e3*rmin, rmax*1e3], 0, 1e3*(deltah+h1), color=p[0].get_color())
+    plt.hlines(0, rmin*1e3, rmax*1e3, color=p[0].get_color())
+    p = plt.plot(r*1e3, 1e3*np.linspace(h1+deltah, h1, n_mesh), label='Linear')
+    plt.vlines(rmax*1e3,  1e3*h1, 1e3*(deltah+h1), color=p[0].get_color())
+    plt.plot(r*1e3, 1e3*d_stp, label='Steps')
+    plt.plot(r*1e3, 1e3*d_exp, label='Exp.')
+    plt.xlabel('Radius in mm')
+    plt.ylabel('Height in mm')
+    plt.ylim(-1, 2)
+    plt.legend(title='Profiles:', ncol=2, loc='lower right')
+    plt.tight_layout()
+    plt.savefig("Profiles_HeightTaperMethods_srcPlot.pdf")
+    plt.show()
 
     fig = plt.figure(figsize=(3.3, 3.3))
     ax = fig.add_subplot(111)
@@ -129,15 +175,6 @@ def show_comparison():
     ax.legend(title='Height $h(r)$:', fontsize=11)
     fig.tight_layout()
     plt.savefig("Z_vs_HeightTaperMethods.pdf")
-
-#    plt.plot(r*1e3, z_dconst, label='Constant')
-#    plt.xlabel('Radius in mm')
-#    plt.ylabel('Z in Ohm')
-#    plt.grid(ls='--')
-#    plt.legend()
-#    plt.tight_layout()
-#    plt.savefig("Z_vs_ConstHeight.pdf")
-#    plt.show()
 
     s11_dconst = list()
     s11_dlin = list()
@@ -171,5 +208,7 @@ def show_comparison():
 
 
 if __name__ == "__main__":
+    print("Running Optimizer")
+    optimize_step_taper()
     print("Showing Comparison")
     show_comparison()
