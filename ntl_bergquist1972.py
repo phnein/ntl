@@ -48,7 +48,6 @@ import scipy.constants as const
 
 
 def ntl_bergquist1972(z0, gamma, x, precision):
-
     # integrate propagation coefficient gamma.
     # system transformation, step 1
     int_gamma = integrate.cumtrapz(gamma + 0j, -x, initial=0j)
@@ -119,12 +118,19 @@ def calc_z0(r_vect, d_vect):
     return 376.73 * 8 * d_vect / (r_vect * np.pi)
 
 
-#  analytical_solution_entl()
-# Calculate analytical solution of exponentially tapered NTL (ENTL).
-# Solution can be found by transforming the Riccati-type differential
-# equation into a 2nd-order ODE with constant coefficients.
-#   L: length
 def analytical_solution_entl(Z_ratio, L, freq):
+    """Calculate analytical solution of exponentially tapered NTL (ENTL).
+        Solution can be found by transforming the Riccati-type differential
+        equation into a 2nd-order ODE with constant coefficients.
+
+    Args:
+        Z_ratio (float): impedance ratio.
+        L (float): length.
+        freq (list(float)): frequency.
+
+    Returns:
+        List of gamma values.
+    """
     beta = 2 * np.pi * freq / const.c
     q2 = np.log(Z_ratio) / (2*L)
     K = beta * beta - q2**2
